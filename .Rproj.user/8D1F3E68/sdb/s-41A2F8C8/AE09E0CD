@@ -1,0 +1,22 @@
+{
+    "contents" : "",
+    "created" : 1399987129496.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "AE09E0CD",
+    "lastKnownWriteTime" : 0,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "caption" : "offers",
+        "contentUrl" : "content?title=offers&file=ccacb4cf35bd40b2959e3f8318503f2a.htm",
+        "displayedObservations" : "37",
+        "displayedVariables" : 6,
+        "totalObservations" : "37",
+        "variables" : "6"
+    },
+    "source_on_save" : false,
+    "type" : "r_dataframe"
+}
