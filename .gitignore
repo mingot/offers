@@ -1,4 +1,4 @@
 data/original/*.csv
-data/sample1/*
+data/sample/*.csv
 data/submissions/*.csv
 .Rproj.user
