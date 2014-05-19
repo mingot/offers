@@ -1,11 +1,11 @@
 
 setwd("/Users/mingot/Projectes/kaggle/Offers")
-train = read.table(file="data/original/trainHistory", header=T, sep=",")
-test = read.table(file="data/original/testHistory", header=T, sep=",")
-offers = read.table(file="data/original/offers", header=T, sep=",")
+train = read.table(file="data/original/trainHistory.csv", header=T, sep=",")
+test = read.table(file="data/original/testHistory.csv", header=T, sep=",")
+offers = read.table(file="data/original/offers.csv", header=T, sep=",")
 
 # Sample transactions for test
-transactions = read.table(file="data/sample1/sample.txt", header=T, sep=",")
+transactions = read.table(file="data/sample/sample.txt", header=T, sep=",")
 ids = unique(transactions$id)
 trainSample = train[train$id %in% ids,]
 
@@ -36,7 +36,7 @@ t2[sample(1:nrow(t),10),6:14]
 library(data.table)
 library(bit64)
 TRAIN = data.table(merge(train, offers[,c("offer","company","brand","category")], all.x=T))
-TRANS = fread("data/sample1/transactions_train.txt", header=T)
+TRANS = fread("data/sample/transactions_train.csv", header=T)
 setnames(TRANS, c("id","chain","dept","category","company","brand","date","productsize","productmeasure","purchasequantity","purchaseamount"))
 
 # convert from int64 to numeric some fields
@@ -61,22 +61,40 @@ setkey(TRAIN,id,category)
 S = TRANS[,list(CATquant=sum(purchasequantity), CATamount=sum(purchaseamount)), by=list(id,category)]
 TRAIN = merge(TRAIN, S, all.x=T) 
 
+# average ticket
+S = TRANS[,list(aov=sum(purchaseamount)), by=list(id, date)]
+S = S[,list(aov=mean(aov)), by=id]
+TRAIN = merge(TRAIN, S,by=c("id"), all.x=T)
 
-# training ----------------------------------------------------------------
-library(pROC)
+# buy times per month
+S = TRANS[,list(aov=length(purchaseamount)), by=list(id, date)]
+S = S[,month:=month(as.Date(S[["date"]]))]
+S = S[,year:=year(as.Date(S[["date"]]))]
+S = S[,list(times=length(id)),by=list(id,month,year)]
 
 # data treatment
 t = data.frame(TRAIN)
 t$repeater = 0
 t$repeater[t$repeattrips>0] = 1
+
+# NA treatment
 t[is.na(t)] = 0
+
+# check for brands
 t$check_brand = 0
 t[t$BRANDquant!=0,"check_brand"] = 1
 t$check_category = 0
 t[t$CATquant!=0,"check_category"] = 1
 t$check_company = 0
 t[t$COMPquant!=0,"check_company"] = 1
+
+
 t[,11:16] = scale(t[,11:16])
+t$aov_sc = scale(t$aov)
+
+# training ----------------------------------------------------------------
+library(pROC)
+
 
 k = 5 # Number of k-folds
 id = sample(1:k,nrow(t),replace=TRUE)
@@ -89,7 +107,7 @@ for (i in 1:k){
   # Training
 #   fit.glm = glm(factor(repeater) ~ BRANDquant + BRANDamount + CATquant + CATamount + COMPquant + COMPamount, data=trainingset, family=binomial)
 #   fit.glm = glm(repeater ~ BRANDamount + CATquant + COMPquant + COMPamount, data=trainingset, family=binomial)
-  fit.glm = glm(repeater ~ check_company + check_category + check_brand, data=trainingset, family=binomial)
+  fit.glm = glm(repeater ~ check_company + check_category + check_brand + aov_sc, data=trainingset, family=binomial)
   
   # Testing
   pred = predict(fit.glm, testset, type="response")
@@ -111,7 +129,7 @@ summary(scale(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")]))
 # test import -------------------------------------------------------------
 
 TEST = data.table(merge(test, offers[,c("offer","company","brand","category")], all.x=T))
-TRANS = fread("data/sample1/transactions_test.txt")
+TRANS = fread("data/sample/transactions_test.csv")
 setnames(TRANS, c("id","chain","dept","category","company","brand","date","productsize","productmeasure","purchasequantity","purchaseamount"))
 
 # convert to numeric some fields
@@ -136,6 +154,11 @@ setkey(TEST,id,category)
 S = TRANS[,list(CATquant=sum(purchasequantity), CATamount=sum(purchaseamount)), by=list(id,category)]
 TEST = merge(TEST, S, all.x=T)  
 
+# average ticket
+S = TRANS[,list(aov=sum(purchaseamount)), by=list(id, date)]
+S = S[,list(aov=mean(aov)), by=id]
+TEST = merge(TEST, S,by=c("id"), all.x=T)
+
 # Apply the ML algorithm
 t = data.frame(TEST)
 t[is.na(t)] = 0
@@ -145,6 +168,8 @@ t$check_category = 0
 t[t$CATquant!=0,"check_category"] = 1
 t$check_company = 0
 t[t$COMPquant!=0,"check_company"] = 1
+t$aov_sc = scale(t$aov)
+
 pred = predict(fit.glm, t, type="response")
 pred[pred>1]=1
 
