@@ -1,2 +1,4 @@
-data/
+data/original/*
+data/sample1/*
+data/submissions/*
 .Rproj.user
