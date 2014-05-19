@@ -1,12 +1,12 @@
 {
-    "contents" : "\n\ntrain = read.table(file=\"data/trainHistory\", header=T, sep=\",\")\ntest = read.table(file=\"data/testHistory\", header=T, sep=\",\")\noffers = read.table(file=\"data/offers\", header=T, sep=\",\")\n\n# 1/0 instead of t/f\ntrain$repeater = 0\ntrain$repeater[train$repeattrips>0] = 1\ntest$repeater = 0\ntest$repeater[test$repeattrips>0] = 1\n\n\nt = aggregate(train$repeater, by=list(train$offer), FUN=sum)\nt2 = aggregate(train$repeater, by=list(train$offer), FUN=length)\nt = merge(t,t2, by=\"Group.1\", all.x=T)\nt$prob = t$x.x/t$x.y\nnames(t)[1] = \"offer\"\nnames(t)[4] = \"prob\"\nt = t[,c(\"offer\",\"prob\")]\nt = t[order(-t$prob),]\nrow.names(t) = NULL\n",
+    "contents" : "\n\ntrain = read.table(file=\"data/trainHistory\", header=T, sep=\",\")\ntest = read.table(file=\"data/testHistory\", header=T, sep=\",\")\noffers = read.table(file=\"data/offers\", header=T, sep=\",\")\n\n# 1/0 instead of t/f\ntrain$repeater = 0\ntrain$repeater[train$repeattrips>0] = 1\ntest$repeater = 0\ntest$repeater[test$repeattrips>0] = 1\n\n\nt = aggregate(train$repeater, by=list(train$offer), FUN=sum)\nt2 = aggregate(train$repeater, by=list(train$offer), FUN=length)\nt = merge(t,t2, by=\"Group.1\", all.x=T)\nt$prob = t$x.x/t$x.yn\nnames(t)[1] = \"offer\"\nnames(t)[4] = \"prob\"\nt = t[,c(\"offer\",\"prob\")]\nt = t[order(-t$prob),]\nrow.names(t) = NULL\n",
     "created" : 1399907866013.000,
     "dirty" : true,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "2618512244",
+    "hash" : "1740878356",
     "id" : "1663049D",
-    "lastKnownWriteTime" : 1399987113,
+    "lastKnownWriteTime" : 1400056135,
     "path" : "~/Projectes/kaggle/Offers/code/jm_main.R",
     "project_path" : "code/jm_main.R",
     "properties" : {
