@@ -75,6 +75,7 @@ ExtractFeatures = function(TRANS, TRAIN){
   t[t$CATquant!=0,"check_category"] = 1
   t$check_company = 0
   t[t$COMPquant!=0,"check_company"] = 1
+  t$check_combined = t$check_brand*t$check_category*t$check_company
   
   # Scaling
   # t[,11:16] = scale(t[,11:16])
@@ -92,13 +93,13 @@ ExtractFeatures = function(TRANS, TRAIN){
 }
 
 t = ExtractFeatures(TRANS, TRAIN)
-tTest = ExtractFeatures(TRANS_TEST, TEST)
+
 
 # training ----------------------------------------------------------------
 library(pROC)
+library(gbm)
 
-
-k = 5 # Number of k-folds
+k = 3 # Number of k-folds
 id = sample(1:k,nrow(t),replace=TRUE)
 list = 1:k
 aucs=c()
@@ -109,8 +110,10 @@ for (i in 1:k){
   # Training
 #   fit.glm = glm(factor(repeater) ~ BRANDquant + BRANDamount + CATquant + CATamount + COMPquant + COMPamount, data=trainingset, family=binomial)
 #   fit.glm = glm(repeater ~ BRANDamount + CATquant + COMPquant + COMPamount, data=trainingset, family=binomial)
-  fit.glm = glm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc, 
-                data=trainingset, family=binomial)
+#   fit.glm = glm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc + check_combined, 
+#                 data=trainingset, family=binomial)
+  fit.gbm = gbm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc + check_combined,
+                distribution="adaboost", data=trainingset) 
   
   # Testing
   pred = predict(fit.glm, testset, type="response")
@@ -129,52 +132,11 @@ summary(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")])
 summary(scale(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")]))
 
 
-# test import -------------------------------------------------------------
+# Prediction --------------------------------------------------------------
 
-# TEST = data.table(merge(test, offers[,c("offer","company","brand","category")], all.x=T))
-# TRANS = fread("data/sample/transactions_test.csv")
-# setnames(TRANS, c("id","chain","dept","category","company","brand","date","productsize","productmeasure","purchasequantity","purchaseamount"))
-# 
-# # convert to numeric some fields
-# set(TRANS, j="id", value=as.numeric(TRANS[["id"]]))
-# set(TRANS, j="company", value=as.numeric(TRANS[["company"]]))
-# 
-# # brand grouping
-# setkey(TRANS,id,brand)
-# setkey(TEST,id,brand)
-# S = TRANS[,list(BRANDquant=sum(purchasequantity), BRANDamount=sum(purchaseamount)), by=list(id,brand)]
-# TEST = merge(TEST, S, all.x=T)
-# 
-# # company grouping
-# setkey(TRANS,id,company)
-# setkey(TEST,id,company)
-# S = TRANS[,list(COMPquant=sum(purchasequantity), COMPamount=sum(purchaseamount)), by=list(id,company)]
-# TEST = merge(TEST, S, all.x=T)
-# 
-# # category grouping
-# setkey(TRANS,id,category)
-# setkey(TEST,id,category)
-# S = TRANS[,list(CATquant=sum(purchasequantity), CATamount=sum(purchaseamount)), by=list(id,category)]
-# TEST = merge(TEST, S, all.x=T)  
-# 
-# # average ticket
-# S = TRANS[,list(aov=sum(purchaseamount)), by=list(id, date)]
-# S = S[,list(aov=mean(aov)), by=id]
-# TEST = merge(TEST, S,by=c("id"), all.x=T)
-# 
-# # Apply the ML algorithm
-# t = data.frame(TEST)
-# t[is.na(t)] = 0
-# t$check_brand = 0
-# t[t$BRANDquant!=0,"check_brand"] = 1
-# t$check_category = 0
-# t[t$CATquant!=0,"check_category"] = 1
-# t$check_company = 0
-# t[t$COMPquant!=0,"check_company"] = 1
-# t$aov_sc = scale(t$aov)
-
+tTest = ExtractFeatures(TRANS_TEST, TEST)
+tTest$check_combined = tTest$check_brand*tTest$check_category*tTest$check_company
 pred = predict(fit.glm, tTest, type="response")
-pred[pred>1]=1
 
 
 # submission --------------------------------------------------------------
