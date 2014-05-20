@@ -9,13 +9,14 @@ offers = read.table(file="data/original/offers.csv", header=T, sep=",")
 library(data.table)
 library(bit64)
 
-# Create data tables
+# Create data tables (~10 min)
 TRAIN = data.table(merge(train, offers[,c("offer","company","brand","category")], all.x=T))
 TRANS = fread("data/sample/transactions_train.csv", header=T)
 TEST = data.table(merge(test, offers[,c("offer","company","brand","category")], all.x=T))
 TRANS_TEST = fread("data/sample/transactions_test.csv")
 
 setnames(TRANS, c("id","chain","dept","category","company","brand","date","productsize","productmeasure","purchasequantity","purchaseamount"))
+setnames(TRANS_TEST, c("id","chain","dept","category","company","brand","date","productsize","productmeasure","purchasequantity","purchaseamount"))
 
 # Offers priors
 train$repeater = 0
@@ -65,6 +66,9 @@ ExtractFeatures = function(TRANS, TRAIN){
   TRAIN = merge(TRAIN, S, by=c("brand","company","category"), all.x=T)
   
   # number of different users that boutht the product
+  S = TRANS[,list(product_users=.N), by=list(id,category,brand,company)]
+  S = S[,list(product_users=.N), by=list(category,brand,company)]
+  TRAIN = merge(TRAIN, S, by=c("brand","company","category"), all.x=T)
   
   # data treatment
   t = data.frame(TRAIN)
@@ -84,6 +88,7 @@ ExtractFeatures = function(TRANS, TRAIN){
   t$aov_sc = scale(t$aov)
   t$freq_sc = scale(t$freq)
   t$product_times_sc = scale(t$product_times)
+  t$product_users_sc = scale(t$product_users)
   
   # priors to known offers
   t = merge(t, offPrior, all.x=T) 
@@ -94,8 +99,9 @@ ExtractFeatures = function(TRANS, TRAIN){
   return(t)
 }
 
+# ~10min
 t = ExtractFeatures(TRANS, TRAIN)
-
+t$good_chain = 
 
 # training ----------------------------------------------------------------
 library(pROC)
@@ -119,7 +125,7 @@ for (i in 1:k){
 #                 data=trainingset, distribution="adaboost")
 #   fit.glm = glm(repeater ~ BRANDamount + CATquant + COMPquant + COMPamount, data=trainingset, family=binomial)
   fit.glm = glm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc 
-                + product_times_sc + check_combined + factor(market), 
+                + product_times_sc + check_combined + factor(market) + product_users_sc + factor(company), 
                 data=trainingset, family=binomial)
 #   fit.gbm = gbm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc + check_combined,
 #                 distribution="adaboost", data=trainingset) 
@@ -144,9 +150,13 @@ step = stepAIC(fit.glm, direction="both")
 summary(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")])
 summary(scale(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")]))
 
+ids_trans = c(TRANS[["id"]], TRANS_TEST[["id"]])
+ids_trans = unique(ids_trans)
+
 
 # Prediction --------------------------------------------------------------
 
+# (~ 10min)
 tTest = ExtractFeatures(TRANS_TEST, TEST)
 pred = predict(fit.glm, tTest, type="response")
 summary(pred)

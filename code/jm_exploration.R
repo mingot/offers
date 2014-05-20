@@ -36,8 +36,17 @@ offers.glm = lm(prior~offervalue, offersTrain)
 
 
 
+## P(repeat|weekday)
+d = setnames(aggregate(train$repeater, by=list(weekdays(as.Date(train$offerdate))), FUN=mean), c("weekday","prob"))
+barplot(height=d$prob, legend.text=d$weekday)
 
+## P(repeat|chain)
+d = setnames(aggregate(train$repeater, by=list(train$chain), FUN=mean), c("chain","prob"))
+d = merge(d, setnames(aggregate(train$repeater, by=list(train$chain), FUN=sum), c("chain","num")))
+d[d$prob>0.5,]
+barplot(height=d$prob)
 
+## P(repeat |)
 
 
 
