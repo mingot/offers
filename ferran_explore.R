@@ -133,6 +133,10 @@ exploration1 = merge(aux1,aux2,by = "market")
 exploration1$prob = exploration1$repeater/exploration1$ones
 exploration1 = exploration1[order(-exploration1$ones,-exploration1$prob),]
 
+dataVisualization("repeater","freq",t,"numerical")
+dataVisualization("repeater","aov",t,"numerical")
+dataVisualization("repeater","product_times",t,"numerical")
+
 # training ----------------------------------------------------------------
 library(pROC)
 library(gbm)
