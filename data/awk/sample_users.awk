@@ -7,7 +7,7 @@ BEGIN {
 	if (selected==$1 || FNR==1){ 
 		print $0
 	}else if(last!=$1){ 
-		if(rand() <= .1){
+		if(rand() <= .3){
 			selected=$1
 			print $0
 		}
