@@ -8,6 +8,8 @@ offers = read.table(file="data/original/offers.csv", header=T, sep=",")
 # Extract Features --------------------------------------------------------
 library(data.table)
 library(bit64)
+
+# Create data tables
 TRAIN = data.table(merge(train, offers[,c("offer","company","brand","category")], all.x=T))
 TRANS = fread("data/sample/transactions_train.csv", header=T)
 TEST = data.table(merge(test, offers[,c("offer","company","brand","category")], all.x=T))
@@ -99,7 +101,7 @@ t = ExtractFeatures(TRANS, TRAIN)
 library(pROC)
 library(gbm)
 
-k = 3 # Number of k-folds
+k = 5 # Number of k-folds
 id = sample(1:k,nrow(t),replace=TRUE)
 list = 1:k
 aucs=c()
@@ -108,22 +110,33 @@ for (i in 1:k){
   testset = t[id %in% c(i),]
   
   # Training
-#   fit.glm = glm(factor(repeater) ~ BRANDquant + BRANDamount + CATquant + CATamount + COMPquant + COMPamount, data=trainingset, family=binomial)
-#   fit.glm = glm(repeater ~ BRANDamount + CATquant + COMPquant + COMPamount, data=trainingset, family=binomial)
-#   fit.glm = glm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc + check_combined, 
+  trainingset = trainingset[,!names(trainingset) %in% c("repeattrips","offerdate")]
+#   fit.glm = glm(repeater ~ . -offer -id -aov -freq -product_times
+#                  + factor(market) - chain
+#                 - brand - company - category - market, 
 #                 data=trainingset, family=binomial)
-  fit.gbm = gbm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc + check_combined,
-                distribution="adaboost", data=trainingset) 
+#   fit.gbm = gbm(repeater ~ . -offer -id -aov -freq -product_times, 
+#                 data=trainingset, distribution="adaboost")
+#   fit.glm = glm(repeater ~ BRANDamount + CATquant + COMPquant + COMPamount, data=trainingset, family=binomial)
+  fit.glm = glm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc 
+                + product_times_sc + check_combined + factor(market), 
+                data=trainingset, family=binomial)
+#   fit.gbm = gbm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc + check_combined,
+#                 distribution="adaboost", data=trainingset) 
   
   # Testing
   pred = predict(fit.glm, testset, type="response")
   real = testset$repeater
-  rmse =  sqrt(sum((pred - real) ^ 2))/length(real)
   aucs = c(aucs,auc(real, pred))
   cat("auc:",auc(real, pred),"\n")
 }
 cat("mean auc:", mean(aucs),"sd:",sd(aucs),"\n")
-fit.glm = glm(repeater ~ check_company + check_category + check_brand, data=t, family=binomial)
+
+# Auxiliar
+fit.glm = glm(repeater ~ check_company + check_category + check_brand, data=t, family=binomial) # train the complete model
+write(names(fit.glm$coefficients[1:16]), file="") # list all the variables used
+cat(names(fit.glm$coefficients[2:9]),sep=", ") # list all the variables used (1 line)
+
 
 # step selection
 library(MASS)
@@ -135,9 +148,8 @@ summary(scale(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")]))
 # Prediction --------------------------------------------------------------
 
 tTest = ExtractFeatures(TRANS_TEST, TEST)
-tTest$check_combined = tTest$check_brand*tTest$check_category*tTest$check_company
 pred = predict(fit.glm, tTest, type="response")
-
+summary(pred)
 
 # submission --------------------------------------------------------------
 
