@@ -1,9 +1,11 @@
 
+
 setwd("/Users/mingot/Projectes/kaggle/Offers")
 train = read.table(file="data/original/trainHistory.csv", header=T, sep=",")
 test = read.table(file="data/original/testHistory.csv", header=T, sep=",")
 offers = read.table(file="data/original/offers.csv", header=T, sep=",")
 
+train$repeater = as.numeric(train$repeattrips>0)
 
 # Extract Features --------------------------------------------------------
 library(data.table)
@@ -18,12 +20,13 @@ TRANS_TEST = fread("data/sample/transactions_test.csv")
 setnames(TRANS, c("id","chain","dept","category","company","brand","date","productsize","productmeasure","purchasequantity","purchaseamount"))
 setnames(TRANS_TEST, c("id","chain","dept","category","company","brand","date","productsize","productmeasure","purchasequantity","purchaseamount"))
 
-# Offers priors
-train$repeater = 0
-train$repeater[train$repeattrips>0] = 1
-offPrior = aggregate(train$repeater, by=list(train$offer), FUN=mean)
-names(offPrior) = c("offer","offer_prior")
-offPrior = offPrior[offPrior$offer %in% unique(test$offer),]
+# # Offers priors
+# offPrior = setnames(aggregate(train$repeater, by=list(train$offer), FUN=mean), c("offer","offer_prior")) 
+# offPrior = offPrior[offPrior$offer %in% unique(test$offer),]
+# 
+# # Company priors
+# compPrior = setnames(aggregate(t$repeater, by=list(t$company), FUN=mean), c("company","company_prior"))
+# compPrior = compPrior[compPrior$company %in% unique(tTest$company),]
 
 
 ExtractFeatures = function(TRANS, TRAIN){
@@ -70,18 +73,20 @@ ExtractFeatures = function(TRANS, TRAIN){
   S = S[,list(product_users=.N), by=list(category,brand,company)]
   TRAIN = merge(TRAIN, S, by=c("brand","company","category"), all.x=T)
   
+  # product price
+  S = TRANS[purchaseamount>0 & purchasequantity>0,c("purchaseamount","purchasequantity","brand","company","category"), with=F] # remove negative transactions
+  S = S[,prize:=purchaseamount/purchasequantity]
+  S = S[,list(prize=mean(prize)), by=list(brand,company,category)]
+  TRAIN = merge(TRAIN, S, by=c("brand","company","category"), all.x=T)
+  
   # data treatment
   t = data.frame(TRAIN)
   
   # check for brands
   t[is.na(t)] = 0 # NA treatment
-  t$check_brand = 0
-  t[t$BRANDquant!=0,"check_brand"] = 1
-  t$check_category = 0
-  t[t$CATquant!=0,"check_category"] = 1
-  t$check_company = 0
-  t[t$COMPquant!=0,"check_company"] = 1
-  t$check_combined = t$check_brand*t$check_category*t$check_company
+  t$check_brand = as.numeric(t$BRANDquant!=0)
+  t$check_category = as.numeric(t$CATquant!=0)
+  t$check_company = as.numeric(t$COMPquant!=0)
   
   # Scaling
   # t[,11:16] = scale(t[,11:16])
@@ -91,7 +96,7 @@ ExtractFeatures = function(TRANS, TRAIN){
   t$product_users_sc = scale(t$product_users)
   
   # priors to known offers
-  t = merge(t, offPrior, all.x=T) 
+  # t = merge(t, offPrior, all.x=T) 
   
   # NA treatment
   t[is.na(t)] = 0
@@ -99,15 +104,28 @@ ExtractFeatures = function(TRANS, TRAIN){
   return(t)
 }
 
+l = c(64,152,166)
+var = "chain"
+for(v in l)
+  t[,paste(var,v,sep="")] = as.numeric(t[,var]==v)
+
+l = c(1,15,21,96)
+var = "market"
+for(v in l)
+  t[,paste(var,v,sep="")] = as.numeric(t[,var]==v)
+
+
+
 # ~10min
 t = ExtractFeatures(TRANS, TRAIN)
-t$good_chain = 
+
 
 # training ----------------------------------------------------------------
 library(pROC)
 library(gbm)
 
-k = 5 # Number of k-folds
+
+k = 3 # Number of k-folds
 id = sample(1:k,nrow(t),replace=TRUE)
 list = 1:k
 aucs=c()
@@ -117,18 +135,17 @@ for (i in 1:k){
   
   # Training
   trainingset = trainingset[,!names(trainingset) %in% c("repeattrips","offerdate")]
-#   fit.glm = glm(repeater ~ . -offer -id -aov -freq -product_times
-#                  + factor(market) - chain
-#                 - brand - company - category - market, 
-#                 data=trainingset, family=binomial)
+
 #   fit.gbm = gbm(repeater ~ . -offer -id -aov -freq -product_times, 
 #                 data=trainingset, distribution="adaboost")
-#   fit.glm = glm(repeater ~ BRANDamount + CATquant + COMPquant + COMPamount, data=trainingset, family=binomial)
-  fit.glm = glm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc 
-                + product_times_sc + check_combined + factor(market) + product_users_sc + factor(company), 
+
+  fit.glm = glm(repeater ~ check_company + check_category + check_brand 
+                + check_brand*check_category*check_company
+                + aov_sc + freq_sc + product_times_sc  + product_users_sc
+                + chain64 + chain152 + chain166
+                #+ factor(market),
+                + market1 + market15 + market21 + market96, 
                 data=trainingset, family=binomial)
-#   fit.gbm = gbm(repeater ~ check_company + check_category + check_brand + aov_sc + freq_sc + product_times_sc + check_combined,
-#                 distribution="adaboost", data=trainingset) 
   
   # Testing
   pred = predict(fit.glm, testset, type="response")
@@ -137,11 +154,17 @@ for (i in 1:k){
   cat("auc:",auc(real, pred),"\n")
 }
 cat("mean auc:", mean(aucs),"sd:",sd(aucs),"\n")
+summary(fit.glm)
 
 # Auxiliar
-fit.glm = glm(repeater ~ check_company + check_category + check_brand, data=t, family=binomial) # train the complete model
+fit.glm = glm(repeater ~ check_company + check_category + check_brand + check_combined
+              + aov_sc + freq_sc + product_times_sc  + product_users_sc
+              + chain64 + chain152 + chain166
+              + factor(market),
+              data=t, family=binomial)
+
 write(names(fit.glm$coefficients[1:16]), file="") # list all the variables used
-cat(names(fit.glm$coefficients[2:9]),sep=", ") # list all the variables used (1 line)
+cat(names(fit.glm$coefficients[2:13]),sep=", ") # list all the variables used (1 line)
 
 
 # step selection

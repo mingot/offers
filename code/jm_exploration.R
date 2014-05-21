@@ -11,30 +11,29 @@ d = merge(d, setnames(aggregate(train$repeater, by=list(train$chain), FUN=sum), 
 d[d$prob>0.5,]
 barplot(height=d$prob)
 
-## P(repeat |)
+## Individual visualitzations
 dataVisualization(response="repeater", name="freq", data=t, type="numerical")
 dataVisualization(response="repeater", name="product_users", data=t, type="numerical")
 dataVisualization(response="repeater", name="offer_prior", data=t, type="numerical")
 dataVisualization(response="repeater", name="aov", data=t, type="numerical")
 
+dataVisualization(response="repeater", name="offer", data=t, type="categorical", aes="points")
 dataVisualization(response="repeater", name="company", data=t, type="categorical", aes="points")
 dataVisualization(response="repeater", name="brand", data=t, type="categorical", aes="points")
 dataVisualization(response="repeater", name="category", data=t, type="categorical", aes="points")
+
 dataVisualization(response="repeater", name="market", data=t, type="categorical", aes="points")
 dataVisualization(response="repeater", name="chain", data=t, type="categorical", aes="points")
-dataVisualization(response="repeater", name="offer", data=t, type="categorical", aes="points")
 
-dep = TRANS[["dept"]]
-length(unique(dep))
-cat = TRANS[["category"]]
-length(unique(cat))
-comp = TRANS[["company"]]
-length(unique(comp))
 
-comp_train = unique(t$company)
-comp_test = unique(tTest$company)
-
-brand_train = unique(t$brand)
-brand_test = unique(tTest$brand)
+## Information present in test
+var = "category"
+fTrain = unique(t[,var])
+fTest = unique(tTest[,var])
+intersection = fTrain[fTrain %in% fTest]
+cat("Train contains: ",length(fTrain)," unique ", var)
+cat("Test contains: ",length(fTest)," unique ", var)
+cat("They have an intersection of: ", length(intersection)," elements")
+cat("That intersection represents: ",sum(tTest[,var] %in% intersection)*100/nrow(tTest),"% volume of test")
 
 
