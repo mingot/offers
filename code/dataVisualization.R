@@ -1,6 +1,8 @@
-dataVisualization<-function(response,name,data,type){
-  feature = data[,which(names(data)%in%name),with = FALSE] 
-  output = data[,which(names(data)%in%response),with = FALSE]
+library(ggplot2)
+
+dataVisualization <- function(response,name,data,type,aes="bars"){
+  feature = data[,names(data)%in%name] 
+  output = data[,names(data)%in%response]
   
   if(type == "binomial"){
     m1 = mean(output[which(feature == 1)]);
@@ -27,13 +29,20 @@ dataVisualization<-function(response,name,data,type){
       xx2[i] = mean(x2[which(x1 == xx1[i])])
     
     plot(xx1,xx2, type = "l", col = "blue", xlab = name, ylab = paste("Probability", response), main = name)
-  }else{
     
+  }else if(type=="categorical"){
+    population = as.vector(table(feature))
+    feature=factor(feature)
     l = levels(feature)
     means = rep(0, length(l))
     for(i in 1:length(means))
-      means[i] = mean(output[which(feature == l[i])])
+      means[i] = mean(output[which(feature==l[i])])
     
-    barplot(means, names.arg = l, ylab = paste("Probability",response),xlab = name, main = name)
+    if(aes=="points"){
+      d = data.frame(means=means, names=l, population=population)
+      ggplot(d, aes(means,names)) + geom_point(aes(size=population))
+    }else if(aes=="bars"){
+      barplot(means, names.arg=l, ylab=paste("Probability",response), xlab=name, main=name)
+    }
   }
 }

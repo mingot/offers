@@ -1,6 +1,8 @@
 data/original/*.csv
 data/sample/*.csv
 data/submissions/*.csv
+/data
 *.Rproj
-data/
-.Rproj.user
+.Rproj.user/
+.Rhistory
+

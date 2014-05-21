@@ -1,40 +1,5 @@
 
-# Sample transactions for test
-transactions = read.table(file="data/sample/sample.txt", header=T, sep=",")
-ids = unique(transactions$id)
-trainSample = train[train$id %in% ids,]
-
-# Conditional probabilities to success
-train$repeater = 0
-train$repeater[train$repeattrips>0] = 1
-t = aggregate(train$repeater, by=list(train$offer), FUN=sum)
-t2 = aggregate(train$repeater, by=list(train$offer), FUN=length)
-t = merge(t,t2, by="Group.1", all.x=T)
-t$prob = t$x.x/t$x.yn
-names(t)[1] = "offer"
-names(t)[4] = "prob"
-t = t[,c("offer","prob")]
-t = t[order(-t$prob),]
-row.names(t) = NULL
-
-
-t = data.frame(TRAIN)
-summary(t[,11:16])
-# BRAND
-head(S)
-
-#offers model
-aux = setNames(aggregate(train$repeater, by=list(train$offer), FUN=mean), c("offer", "prior"))
-offersTrain = merge(offers, aux, all.y=T)
-offersTest = offers[!(offers$offer %in% offersTrain$offer), ]
-
-
-sum(offersTest$category %in% offersTrain$category)
-
-offers.glm = lm(prior~offervalue, offersTrain)
-
-
-
+source('code/dataVisualization.R')
 
 ## P(repeat|weekday)
 d = setnames(aggregate(train$repeater, by=list(weekdays(as.Date(train$offerdate))), FUN=mean), c("weekday","prob"))
@@ -47,6 +12,29 @@ d[d$prob>0.5,]
 barplot(height=d$prob)
 
 ## P(repeat |)
+dataVisualization(response="repeater", name="freq", data=t, type="numerical")
+dataVisualization(response="repeater", name="product_users", data=t, type="numerical")
+dataVisualization(response="repeater", name="offer_prior", data=t, type="numerical")
+dataVisualization(response="repeater", name="aov", data=t, type="numerical")
 
+dataVisualization(response="repeater", name="company", data=t, type="categorical", aes="points")
+dataVisualization(response="repeater", name="brand", data=t, type="categorical", aes="points")
+dataVisualization(response="repeater", name="category", data=t, type="categorical", aes="points")
+dataVisualization(response="repeater", name="market", data=t, type="categorical", aes="points")
+dataVisualization(response="repeater", name="chain", data=t, type="categorical", aes="points")
+dataVisualization(response="repeater", name="offer", data=t, type="categorical", aes="points")
+
+dep = TRANS[["dept"]]
+length(unique(dep))
+cat = TRANS[["category"]]
+length(unique(cat))
+comp = TRANS[["company"]]
+length(unique(comp))
+
+comp_train = unique(t$company)
+comp_test = unique(tTest$company)
+
+brand_train = unique(t$brand)
+brand_test = unique(tTest$brand)
 
 
