@@ -1,6 +1,6 @@
 dataVisualization<-function(response,name,data,type){
-  feature = data[,names(data)%in%name] 
-  output = data[,names(data)%in%response]
+  feature = data[,which(names(data)%in%name),with = FALSE] 
+  output = data[,which(names(data)%in%response),with = FALSE]
   
   if(type == "binomial"){
     m1 = mean(output[which(feature == 1)]);
