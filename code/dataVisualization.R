@@ -40,7 +40,11 @@ dataVisualization <- function(response,name,data,type,aes="bars"){
     
     if(aes=="points"){
       d = data.frame(means=means, names=l, population=population)
-      ggplot(d, aes(means,names)) + geom_point(aes(size=population))
+      ggplot(d, aes(means,names)) + 
+        geom_point(aes(size=population)) + 
+        ggtitle(paste("Probability",response)) +
+        xlab("prob") +
+        ylab(name)
     }else if(aes=="bars"){
       barplot(means, names.arg=l, ylab=paste("Probability",response), xlab=name, main=name)
     }
