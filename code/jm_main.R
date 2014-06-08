@@ -36,8 +36,9 @@ library(pROC)
 library(gbm)
 
 k = 3 # Number of k-folds
-id = sample(1:k,nrow(TRAIN),replace=TRUE)
-data = as.data.frame(TRAIN)
+id = sample(1:k,nrow(TRAIN2),replace=TRUE)
+data = as.data.frame(TRAIN2)
+data$check_product = data$check_company*data$check_brand*data$check_category
 list = 1:k
 aucs=c()
 for (i in 1:k){
@@ -47,11 +48,12 @@ for (i in 1:k){
   # Training
   trainingset = trainingset[,!names(trainingset) %in% c("repeattrips","offerdate")]
   
-  fit.gbm = gbm(repeater ~ check_company + check_category + check_brand
-                + check_brand*check_category*check_company
+  fit.gbm = gbm(repeater ~ check_company + check_category + check_brand + check_product
+                #+ check_brand*check_category*check_company
                 + product_times_sc  + product_users_sc # +aov_sc +freq_sc
                 + chain64 + chain152 + chain166
                 + market1 + market15 + market21 + market96
+                + cat1_val + cat2_val + cat3_val
                 + aov + aov_factor + freq + freq_category + freq_product + prize_category_sc, #+ regularity,
                 data=trainingset, distribution="adaboost", 
                 n.trees=500, shrinkage=0.7, interaction.depth=1, verbose=T)

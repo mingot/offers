@@ -43,22 +43,3 @@ var = "prize"
 hist(t[,var], main="train", xlab=var)
 hist(tTest[,var], main="test", xlab=var)
 
-
-# Recommendation ----------------------------------------------------------
-library(reshape2)
-library(lsa)
-
-S = TRANS[,list(times=.N), by=list(id, category)]
-S[, times:=1]
-
-rows=1000000
-ptm = proc.time()
-T = head(S, rows)
-T = dcast(T, id~category, value.var="times", fill=0)
-M = cosine(as.matrix(T[,!names(T) %in% "id"]))
-proc.time() - ptm
-
-
-require(lattice)
-s = sample(1:nrow(M),100)
-levelplot(M[s,s])

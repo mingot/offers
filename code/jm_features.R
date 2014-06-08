@@ -100,10 +100,11 @@ rm(TRANS)
 
 cat("Cleaning variables...\n")
 
-# check for brands
+# check for transaction history
 TRAIN[, check_brand := as.numeric(BRANDquant!=0)]
 TRAIN[, check_category := as.numeric(CATquant!=0)]
 TRAIN[, check_company := as.numeric(COMPquant!=0)]
+TRAIN[, check_product := check_brand*check_category*check_company]
 
 # Scaling
 # t[,11:16] = scale(t[,11:16])
