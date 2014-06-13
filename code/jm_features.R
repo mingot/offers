@@ -15,18 +15,18 @@ NA2zero = function(DT) {
 FreqVars = function(TRANS, TRAIN, name){
   # Returns times/month the user goes shopping variable "name" (brand, company, category)
   #     name="category"
-  #     name="product"
+  #   name="product"
   S = TRANS[,list(value=sum(purchaseamount)), by=c('id',name,'date')]
   S$value[S$value!=0]=1
   S = S[, month:=substr(S[["date"]],1,7)] # extract month-year
   S = S[, times:=sum(value), by=c("id","month",name)] # group by month
   S = S[, list(aux=mean(times)), by=c("id",name)] # mean per user
-  S[is.na(S)] = 0
+  NA2zero(S)
   
   setnames(S,c("id",name, paste("freq", name, sep = "_")))
   
   TRAIN = merge(TRAIN, S, by = c("id",name),all.x=T) 
-  TRAIN[is.na(TRAIN)] = 0
+  NA2zero(TRAIN)
   return(TRAIN)
 }
 # General vars ------------------------------------------------------------
@@ -60,6 +60,11 @@ TRAIN = merge(TRAIN, S, by="id", all.x=T)
 TRAIN$aov[TRAIN$aov > 300] = 300
 TRAIN$aov_factor= cut(TRAIN$aov,breaks = c("-100","30","60","1000"), labels = c("low","medium","high"))
 
+# Repeater
+S = TRANS[,list(repeater_mean = .N), by=list(id,category,brand,company)]
+S = S[,list(repeater_mean = mean(repeater_mean)), by = list(id)]
+TRAIN = merge(TRAIN, S, by=c("id"), all.x=T)
+
 # frequency (purchases per month)
 cat("Frequency...\n")
 S = TRANS[,list(aov=length(purchaseamount)), by=list(id, date)] #group by daily transactions
@@ -80,10 +85,10 @@ S = S[,list(product_users=.N), by=list(category,brand,company)]
 TRAIN = merge(TRAIN, S, by=c("brand","company","category"), all.x=T)
 
 # product price
-cat("Prize...\n")
+cat("Price...\n")
 S = TRANS[purchaseamount>0 & purchasequantity>0,c("purchaseamount","purchasequantity","brand","company","category"), with=F] # remove negative transactions
 S = S[,prize:=purchaseamount/purchasequantity]
-S = S[,list(prize=mean(prize)), by=list(brand,company,category)]
+S = S[,list(prize=mean(prize), prize_sd=sd(prize), prize_ferran=sd(prize)/mean(prize)), by=list(brand,company,category)]
 S = S[,prize_category:=mean(prize), by=list(category)]
 TRAIN = merge(TRAIN, S, by=c("brand","company","category"), all.x=T)
 
@@ -92,7 +97,7 @@ TRAIN = FreqVars(TRANS,TRAIN,"category")
 cat("Freq product...\n")
 TRAIN[, product := paste(brand, category, company,sep = "_")]
 TRANS[, product := paste(brand, category, company,sep = "_")]
-TRAIN = FreqVars(TRANS,TRAIN,"product")
+TEST = FreqVars(TRANS,TEST,"product")
 
 NA2zero(TRAIN)
 rm(TRANS)
@@ -112,7 +117,7 @@ TRAIN[, aov_sc := scale(aov)]
 TRAIN[, freq_sc := scale(freq)]
 TRAIN[, product_times_sc := scale(product_times)]
 TRAIN[, product_users_sc := scale(product_users)]
-TRAIN[, prize_category_sc := prize/prize_catetgory]
+TRAIN[, prize_category_sc := prize/prize_category]
 
 # priors to known offers
 # t = merge(t, offPrior, all.x=T)

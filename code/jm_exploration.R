@@ -43,3 +43,45 @@ var = "prize"
 hist(t[,var], main="train", xlab=var)
 hist(tTest[,var], main="test", xlab=var)
 
+
+
+# TRAIN vs TEST -----------------------------------------------------------
+
+source('code/dataVisualization.R')
+
+vars = as.character(summary(fit.gbm)$var)
+
+i = "prize_category_sc"#vars[23]; i
+par(mfrow=c(2,2))
+trainVar = TRAIN[[i]]; trainVar = trainVar[trainVar < quantile(trainVar,0.99)]# & trainVar > quantile(trainVar,0.01)]
+testVar = TEST[[i]]; testVar = testVar[testVar < quantile(trainVar,0.99)]# & testVar > quantile(testVar,0.01)]    
+hist(trainVar,breaks = 10, main=i)
+hist(testVar,breaks = 10, main=i)
+boxplot(trainVar)
+boxplot(testVar)
+summary(trainVar)
+summary(testVar)
+par(mfrow=c(1,1))
+dataVisualization(response="repeater", name=i, data=as.data.frame(TRAIN), type="numerical")
+
+#binomial
+trainVar = TRAIN[[i]]; 
+testVar = TEST[[i]]; 
+table(trainVar); table(testVar)
+summary(trainVar); summary(testVar)
+par(mfrow=c(1,1))
+dataVisualization(response="repeater", name=i, data=as.data.frame(TRAIN), type="binomial")
+
+# error q_60 --------------------------------------------------------------
+
+vars = c("tris_has_bought_company","tris_has_bought_company_30","tris_has_bought_company_60","tris_has_bought_company_90","tris_has_bought_company_180")
+TRAIN[sample(1:nrow(TRAIN),100), vars, with=F]
+
+v  = TRAIN[["tris_has_bought_company_q_30"]] > TRAIN[["tris_has_bought_company_q_60"]]
+sum(v)*100 /nrow(TRAIN)
+head(TRAIN[v,c("id","brand","category","company",vars),with=F],100)
+
+TRANS[id==86252 & brand==13474]
+head(TRAIN_TRIS[["has_bought_brand_q_60"]],1000)
+
+
