@@ -1,7 +1,24 @@
 library(data.table)
 library(bit64)
+library(pROC)
+library(gbm)
 setwd("/Users/mingot/Projectes/kaggle/Offers")
 
+
+# Loading data ------------------------------------------------------------
+
+
+# TRAIN
+# write.table(TRAIN, file="data/intermediate/train_10_6_14.csv", sep=",", row.names=F, quote=F)
+# write.table(TRAIN, file="data/intermediate/train_12_6_14.csv", sep=",", row.names=F, quote=F) # corrected freq_category bug
+# write.table(TRAIN, file="data/intermediate/train_14_6_14.csv", sep=",", row.names=F, quote=F) # added standarized tris and compcatamount
+TRAIN = fread("data/intermediate/train_14_6_14.csv", integer64="numeric")
+
+# TEST
+# write.table(TEST, file="data/intermediate/test_10_6_14.csv", sep=",", row.names=F, quote=F)
+# write.table(TEST, file="data/intermediate/test_12_6_14.csv", sep=",", row.names=F, quote=F)
+# write.table(TEST, file="data/intermediate/test_14_6_14.csv", sep=",", row.names=F, quote=F) 
+TEST = fread("data/intermediate/test_14_6_14.csv", integer64="numeric")
 
 train = read.table(file="data/original/trainHistory.csv", header=T, sep=",")
 test = read.table(file="data/original/testHistory.csv", header=T, sep=",")
@@ -13,7 +30,7 @@ train$repeater = as.numeric(train$repeattrips>0)
 
 # Create data tables (~10 min)
 TRAIN = data.table(merge(train, offers[,c("offer","company","brand","category","offervalue")], all.x=T))
-TRANS = fread("data/sample/transactions_train.csv")
+TRANS = fread("data/sample/transactions_train.csv", integer64="numeric")
 
 # ~30min
 ptm = proc.time()
@@ -50,8 +67,6 @@ unusedVars = c("check_brand","check_category","check_company","aov_sc","freq_sc"
 
 
 # training ----------------------------------------------------------------
-library(pROC)
-library(gbm)
 
 k = 3 # Number of k-folds
 id = sample(1:k,nrow(TRAIN),replace=TRUE)
@@ -92,9 +107,9 @@ for (i in 1:k){
   fit.gbm = gbm(repeater ~ check_company + check_brand
                 + chain64 + chain152 + chain166 + market1 + market15 + market21 + market96 
                 + aov + freq + freq_category + freq_product  
-                + repeater_mean + tris_total_spend
-                + tris_has_bought_brand_a_30 + tris_has_bought_brand_a_60 + tris_has_bought_brand_a_90 + tris_has_bought_brand_a_180 + tris_has_bought_brand
-                + tris_has_bought_company_q_60 + tris_has_bought_category_a_180,
+                + repeater_mean + tris_total_spend,
+#                 + tris_has_bought_brand_a_30 + tris_has_bought_brand_a_60 + tris_has_bought_brand_a_90 + tris_has_bought_brand_a_180 + tris_has_bought_brand
+#                 + tris_has_bought_company_q_60 + tris_has_bought_category_a_180,
                 data=trainingset, distribution="adaboost", 
                 n.trees=500, shrinkage=0.7, interaction.depth=1, verbose=T)
 
@@ -149,9 +164,6 @@ cat("mean auc:", mean(aucs),"sd:",sd(aucs),"\n")
 rownames(features) = c()
 format(features, digits=1)
 
-features = data.frame()
-features = cbind(features, summary(fit.gbm))
-
 # Auxiliar
 fit.glm = glm(repeater ~ check_company + check_category + check_brand
               + check_brand*check_category*check_company
@@ -172,26 +184,11 @@ summary(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")])
 summary(scale(t[,c("BRANDamount","CATquant","COMPquant","COMPamount")]))
 
 
-# Save state --------------------------------------------------------------
-
-# TRAIN
-write.table(TRAIN, file="data/intermediate/tablon_10_6_14.csv", sep=",", row.names=F, quote=F)
-write.table(TRAIN, file="data/intermediate/tablon_12_6_14.csv", sep=",", row.names=F, quote=F)
-TRAIN = fread("data/intermediate/tablon_12_6_14.csv", integer64="numeric")
-
-# TEST
-write.table(TEST, file="data/intermediate/test_10_6_14.csv", sep=",", row.names=F, quote=F)
-write.table(TEST, file="data/intermediate/test_12_6_14.csv", sep=",", row.names=F, quote=F)
-TEST = fread("data/intermediate/test_12_6_14.csv", integer64="numeric")
-
-TRAIN[,n:=NULL,with=F]
-TEST[,n:=NULL,with=F]
-
 # Prediction --------------------------------------------------------------
 
 # Import data
 TRAIN = data.table(merge(test, offers[,c("offer","company","brand","category","offervalue")], all.x=T))
-TRANS = fread("data/sample/transactions_test.csv")
+TRANS = fread("data/sample/transactions_test.csv", integer64="numeric")
 
 # (~ 24min)
 ptm = proc.time()
@@ -209,7 +206,7 @@ NA2zero(TEST)
 
 pred =  predict(fit.gbm, TEST, n.trees=1500, type="response") 
 summary(pred)
-
+cat(as.character(summary(fit.gbm)$var), sep=", ") # output variables
 
 
 # submission --------------------------------------------------------------

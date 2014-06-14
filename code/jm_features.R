@@ -92,12 +92,20 @@ S = S[,list(prize=mean(prize), prize_sd=sd(prize), prize_ferran=sd(prize)/mean(p
 S = S[,prize_category:=mean(prize), by=list(category)]
 TRAIN = merge(TRAIN, S, by=c("brand","company","category"), all.x=T)
 
+# freq_product and freq_category
 cat("Freq category...\n")
 TRAIN = FreqVars(TRANS,TRAIN,"category")
 cat("Freq product...\n")
 TRAIN[, product := paste(brand, category, company,sep = "_")]
 TRANS[, product := paste(brand, category, company,sep = "_")]
 TEST = FreqVars(TRANS,TEST,"product")
+
+# company and category grouping
+cat("company grouping...\n")
+setkey(TRANS,id,company,category)
+setkey(TRAIN,id,company,category)
+S = TRANS[,list(COMPCATamount=sum(purchaseamount)), by=list(id,company,category)]
+TEST = merge(TRAIN, S, all.x=T)
 
 NA2zero(TRAIN)
 rm(TRANS)
